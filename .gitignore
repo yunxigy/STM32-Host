@@ -13,7 +13,6 @@ venv/
 *.log.*
 gnss_runtime/
 alarm_settings.json
-/backend/data/
 *.txt
 !**/requirements.txt
 *.zip

@@ -2,7 +2,7 @@
 
 STM32 上位机提供浏览器监测界面、4G 设备 TCP 接入、HTTP/WebSocket 数据分发、GNSS 滤波、告警设置和设备指令。前端和后端在本仓库独立启动，不依赖工具箱源码。
 
-仓库根目录直接展示 `frontend/`、`4G/`、`backend/` 和 `wangye/`。其中当前监测链路为 `frontend + 4G`；`backend` 是保留的独立称重售水柜服务，使用另外一组端口。
+仓库根目录直接展示 `frontend/`、`4G/` 和 `wangye/`，当前监测链路为 `frontend + 4G`。
 
 ## 功能
 
@@ -27,7 +27,6 @@ STM32-Host/
 │   ├── 4G.py                   # 当前监测服务
 │   ├── gnss_filter.py          # GNSS 滤波与状态持久化
 │   └── tests/
-├── backend/                    # 独立称重售水柜 Node 服务
 ├── wangye/                     # 保留的历史提取包及测试
 └── .env.local.example          # 地图配置模板
 ```
@@ -45,15 +44,13 @@ STM32 / 4G 设备 ─TCP :8008→ 4G.py
 | 8007 | 当前监测 HTTP/WebSocket | `4G/` |
 | 8008 | 当前监测设备 TCP | `4G/` |
 | 8016 | 独立前端开发服务器 | `frontend/` |
-| 38080 | 可选售水柜 HTTP | `backend/` |
-| 9001 | 可选售水柜设备 TCP | `backend/` |
 
-设备连接监测服务时使用 8008；售水柜协议使用 9001，两条链路分别运行。
+设备连接监测服务时使用 8008；浏览器通过 8007 访问 HTTP/WebSocket 服务。
 
 ## 环境要求
 
 - Python 3.11 和 pip，用于监测后端。
-- Node.js 22.12+ 和 npm，统一用于前端与可选售水柜后端。
+- Node.js 22.12+ 和 npm，用于前端开发与构建。
 - 高德地图 Web Key 和安全码，用于地图显示；未配置时界面会提示地图未配置。
 - 真实设备需自行配置 4G 模块的服务器地址、TCP 端口和透传模式。
 
@@ -104,7 +101,7 @@ npm run dev
 
 ## 设备数据与接口
 
-当前服务处理数字设备编号，以及 `ACC`、`GYRO`、`ANGLE`、温湿度、GGA/NMEA 和告警等文本消息；具体消息格式以 [4G.py](./4G/4G.py) 中的解析规则和 [测试](./4G/tests/) 为准。固件需要与这些规则一致，不能直接混用称重售水柜的 RAW/REG 协议。
+当前服务处理数字设备编号，以及 `ACC`、`GYRO`、`ANGLE`、温湿度、GGA/NMEA 和告警等文本消息；具体消息格式以 [4G.py](./4G/4G.py) 中的解析规则和 [测试](./4G/tests/) 为准。
 
 | 接口 | 作用 |
 | --- | --- |
@@ -136,8 +133,6 @@ npm run build
 
 前端产物位于 `frontend/dist/`。`wangye/` 保留历史提取包，当前功能维护入口以 `frontend/` 和 `4G/` 为准。
 
-可选售水柜服务在 `backend/` 执行 `npm test`。其后端状态机和 TCP/HTTP 测试会运行；依赖外部 `xcx/` 的小程序联调用例在源码缺失时明确跳过。
-
 ## 部署监测页面
 
 先构建前端，再用进程管理器守护监测后端。Nginx 需分别处理 API/WebSocket 和静态页面，例如在已有站点 server 块中配置：
@@ -160,21 +155,9 @@ location ^~ /stm32/ {
 
 按实际主机修改目录、域名和 TLS 配置，先运行 `nginx -t`。设备 TCP 8008 需要单独配置网络连通与访问控制；HTTP 页面能打开并不证明设备端口可达。
 
-## 可选称重售水柜后端
-
-`backend/` 使用 Node.js，提供 `REG`、`RAW`、门状态和 `OPEN` 等协议的服务端实现。默认 HTTP 38080、TCP 9001，管理标定接口使用 `ADMIN_TOKEN`。
-
-```powershell
-cd backend
-$env:ADMIN_TOKEN=Read-Host '输入本次标定管理令牌'
-npm start
-```
-
-设备维护页为 `http://127.0.0.1:38080/`。称重必须使用实测空载、已知负载和整瓶毛重进行标定；详细说明见 [backend/README.md](./backend/README.md)。该旧文档包含外部固件与小程序的历史说明，相关源码不在本仓库。
-
 ## 数据、升级和排障
 
-`gnss_runtime/`、`alarm_settings.json`、`backend/data/`、真实环境配置和依赖目录不上传 GitHub。更新前停止服务、备份这些数据，再更新源码和依赖。
+`gnss_runtime/`、`alarm_settings.json`、真实环境配置和依赖目录不上传 GitHub。更新前停止服务、备份这些数据，再更新源码和依赖。
 
 | 现象 | 排查 |
 | --- | --- |
@@ -183,6 +166,5 @@ npm start
 | WebSocket 不断重连 | 检查 Nginx Upgrade、代理路径和后端监听端口 |
 | 有 GGA 但没有滤波参考 | 检查校验和、RTK 固定解质量、连续有效采样与状态目录 |
 | 告警重启后丢失 | 检查告警文件路径、持久化磁盘和写入权限 |
-| 售水柜显示未标定 | 完成真实标定，不以假设瓶重代替测量 |
 
 相关项目：[工具箱](https://github.com/yunxigy/Star-Dominion)、[守岸人](https://github.com/yunxigy/ShouAnRen)、[股票研究](https://github.com/yunxigy/Stock-Research)。本仓库不包含登录模块和 OpenWrite。
