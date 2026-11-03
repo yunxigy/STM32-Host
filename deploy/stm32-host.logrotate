@@ -1,0 +1,21 @@
+/var/log/stm32-host/install.log {
+    weekly
+    rotate 4
+    missingok
+    notifempty
+    compress
+    copytruncate
+}
+
+/var/log/stm32-host/nginx-*.log {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    sharedscripts
+    postrotate
+        systemctl kill -s USR1 --kill-who=main nginx.service >/dev/null 2>&1 || true
+    endscript
+}

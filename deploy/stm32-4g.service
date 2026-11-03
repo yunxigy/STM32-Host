@@ -1,0 +1,26 @@
+[Unit]
+Description=STM32 Host 4G telemetry service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=stm32
+Group=stm32
+WorkingDirectory=/opt/stm32-host/4G
+EnvironmentFile=/etc/stm32-host/4G.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/stm32-host/4G/.venv/bin/python /opt/stm32-host/4G/4G.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+UMask=0027
+LimitNOFILE=4096
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
