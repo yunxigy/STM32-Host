@@ -1,6 +1,6 @@
 # STM32-Host · STM32 上位机
 
-STM32 上位机提供浏览器监测界面、4G 设备 TCP 接入、HTTP/WebSocket 数据分发、GNSS 滤波、告警设置和设备指令。前端和后端在本仓库独立启动，不依赖工具箱源码。
+STM32 上位机提供浏览器监测界面、4G 设备 TCP 接入、HTTP/WebSocket 数据分发、GNSS 滤波、告警设置和设备指令。前端和后端在本仓库独立启动。
 
 仓库根目录直接展示 `frontend/`、`4G/` 和 `wangye/`，当前监测链路为 `frontend + 4G`。
 
