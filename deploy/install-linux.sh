@@ -56,7 +56,7 @@ choose_python() {
 check_device_ports() {
     local main_pid port listeners pid
     main_pid="$(systemctl show stm32-4g.service --property=MainPID --value 2>/dev/null || true)"
-    for port in 8007 8008; do
+    for port in 8007 8008 8017 8018; do
         listeners="$(ss -H -ltnp "sport = :$port")"
         if [[ -z "$listeners" ]]; then
             continue
@@ -152,8 +152,8 @@ publish_frontend() {
             "npm_config_registry=$npm_registry" npm ci
         runuser -u stm32 -- env "PATH=$PATH" npm run build
     )
-    install -d -m 0755 /var/www/stm32-host/stm32
-    cp -R "$app_root/frontend/dist/." /var/www/stm32-host/stm32/
+    install -d -m 0755 /var/www/stm32-host/stm32v2
+    cp -R "$app_root/frontend/dist/." /var/www/stm32-host/stm32v2/
     find /var/www/stm32-host -type d -exec chmod 0755 {} +
     find /var/www/stm32-host -type f -exec chmod 0644 {} +
 }
@@ -198,10 +198,14 @@ allow_active_firewall() {
         firewall-cmd --state >/dev/null 2>&1; then
         firewall-cmd --permanent --add-port=80/tcp
         firewall-cmd --permanent --add-port=8008/tcp
+        firewall-cmd --permanent --add-port=8017/tcp
+        firewall-cmd --permanent --add-port=8018/tcp
         firewall-cmd --reload
     elif command -v ufw >/dev/null 2>&1 && ufw status | grep -q '^Status: active'; then
         ufw allow 80/tcp
         ufw allow 8008/tcp
+        ufw allow 8017/tcp
+        ufw allow 8018/tcp
     fi
 }
 
@@ -219,16 +223,16 @@ verify_installation() {
     [[ "$ready" == 1 ]] || fail "后台未就绪，请执行 journalctl -u stm32-4g -n 100。"
     bash "$app_root/deploy/verify-local.sh"
     curl --fail --silent --show-error --max-time 10 \
-        -H "Host: $site_host" http://127.0.0.1/stm32/ >/dev/null
+        -H "Host: $site_host" http://127.0.0.1/stm32v2/ >/dev/null
     curl --fail --silent --show-error --max-time 10 \
-        -H "Host: $site_host" http://127.0.0.1/stm32/api/data >/dev/null
+        -H "Host: $site_host" http://127.0.0.1/stm32v2/api/data >/dev/null
 }
 
 main() {
     local app_root site_host node_arch python_bin step
     if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
         echo "用法：bash deploy/install-linux.sh <服务器公网IPv4或域名>"
-        echo "在 /opt/stm32-host 中以 root 运行；安装后访问 http://该地址/stm32/"
+        echo "在 /opt/stm32-host 中以 root 运行；安装后访问 http://该地址/stm32v2/"
         return
     fi
     [[ "$#" == 1 ]] || fail "请填写服务器公网 IP 或域名，例如：bash deploy/install-linux.sh 203.0.113.10"
@@ -272,8 +276,9 @@ main() {
     allow_active_firewall
     step="检查服务与页面"
     verify_installation
-    printf '\n部署完成\n页面：http://%s/stm32/\n设备：%s:8008（TCP）\n' "$site_host" "$site_host"
-    echo "请在云安全组放行 TCP 80 和 8008。"
+    printf '\n部署完成\n页面：http://%s/stm32v2/\n设备：%s:8008（TCP）\n基准站：%s:8017（TCP）\n流动站：%s:8018（TCP）\n' \
+        "$site_host" "$site_host" "$site_host" "$site_host"
+    echo "请在云安全组放行 TCP 80、8008、8017 和 8018。"
     echo "后台日志：journalctl -u stm32-4g -f"
 }
 

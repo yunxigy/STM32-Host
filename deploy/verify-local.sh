@@ -42,8 +42,8 @@ if command -v ss >/dev/null 2>&1; then
 fi
 
 if [ -n "$PUBLIC_URL" ]; then
-    echo "Checking public page: $PUBLIC_URL/stm32/"
-    curl --fail --silent --show-error --head "$PUBLIC_URL/stm32/" | sed -n '1,8p'
+    echo "Checking public page: $PUBLIC_URL/stm32v2/"
+    curl --fail --silent --show-error --head "$PUBLIC_URL/stm32v2/" | sed -n '1,8p'
 fi
 
 echo "Local checks passed. A response with zero devices is normal until a device connects."

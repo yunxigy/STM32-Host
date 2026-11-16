@@ -5,8 +5,9 @@ import { LeftTelemetryDock } from './stm32/LeftTelemetryDock';
 import { MapSurface } from './stm32/MapSurface';
 import { NmeaPanel } from './stm32/NmeaPanel';
 import { NotificationPanel } from './stm32/NotificationPanel';
+import { RtcmRelayCard } from './stm32/RtcmRelayCard';
 import { EMPTY_ALARM_SETTINGS, normalizeAlarmSettings } from './stm32/alarmSettings';
-import type { AlarmSettings, DeviceMessage, DeviceRecord, DisplacementPoint, LogEntry, MapTheme, NotificationItem } from './stm32/types';
+import type { AlarmSettings, DeviceMessage, DeviceRecord, DisplacementPoint, LogEntry, MapTheme, NotificationItem, RtcmRelayStatus } from './stm32/types';
 import {
   formatLogTime,
   isValidMessage,
@@ -24,9 +25,10 @@ export default function Stm32Window() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [alarmSettings, setAlarmSettings] = useState<AlarmSettings>(EMPTY_ALARM_SETTINGS);
   const [alarmSettingsSaving, setAlarmSettingsSaving] = useState(false);
+  const [rtcmStatus, setRtcmStatus] = useState<RtcmRelayStatus | null>(null);
   const [dataSource] = useState(() => {
-    const path = window.location.pathname.replace(/\/$/, '');
-    const basePath = path.includes('/stm32') ? '/stm32' : '';
+    // 部署路径由构建 base 决定（/stm32v2/ 或 /stm32/），不写死。
+    const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
     return basePath ? `${basePath}/api` : '/api';
   });
 
@@ -143,6 +145,9 @@ export default function Stm32Window() {
     const handlePayload = (json: any) => {
       if (json?.alarm_settings && typeof json.alarm_settings === 'object') {
         acceptAlarmSettings(json.alarm_settings, json.alarm_settings_revision ?? json.alarm_settings_updated_at_ms);
+      }
+      if (json?.rtcm && typeof json.rtcm === 'object') {
+        setRtcmStatus(json.rtcm as RtcmRelayStatus);
       }
       const hasDevicesSnapshot = Boolean(json && json.devices && typeof json.devices === 'object' && !Array.isArray(json.devices));
       const entries: [string, unknown][] = hasDevicesSnapshot
@@ -318,6 +323,7 @@ export default function Stm32Window() {
           </div>
         </div>
         <CommandPanel devices={sortedDevices} selectedDeviceId={selectedDeviceId} selectedDevice={selectedDevice} onSelectDevice={setSelectedDeviceId} onSendCommand={sendCommandToSelected} />
+        <RtcmRelayCard status={rtcmStatus} />
         <NmeaPanel devices={sortedDevices} selectedDeviceId={selectedDeviceId} logs={selectedLogs} onSelectDevice={setSelectedDeviceId} onClear={clearSelectedLogs} />
         <NotificationPanel notifications={notifications} onClear={clearNotifications} />
         <div className="flex items-center justify-between px-1 pb-1 text-[10px] text-slate-500">

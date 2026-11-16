@@ -16,6 +16,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sock import Sock
 from gnss_filter import GnssService
+from rtcm_relay import RtcmRelay
 
 GNSS_STATE_DIR = Path(os.environ.get('STM32_GNSS_STATE_DIR', '').strip() or Path(__file__).with_name('gnss_runtime'))
 gnss_service = GnssService(GNSS_STATE_DIR)
@@ -34,6 +35,12 @@ def _environment_port(name, default):
 
 HTTP_PORT = _environment_port("STM32_HTTP_PORT", 8007)
 DEVICE_TCP_PORT = _environment_port("STM32_TCP_PORT", 8008)
+RTCM_PORT_IN = _environment_port("STM32_RTCM_PORT_IN", 8017)
+RTCM_PORT_OUT = _environment_port("STM32_RTCM_PORT_OUT", 8018)
+RTCM_ENABLED = os.environ.get('STM32_RTCM_ENABLED', '1').strip().lower() not in {'0', 'false', 'off', 'no'}
+
+# 基准站把 RTCM3 差分数据发到 RTCM_PORT_IN，中继再把它推给连在 RTCM_PORT_OUT 的流动站。
+rtcm_relay = RtcmRelay(port_in=RTCM_PORT_IN, port_out=RTCM_PORT_OUT)
 
 app = Flask(__name__)
 allowed_origins = [
@@ -494,6 +501,7 @@ def build_data_snapshot(now_ms=None):
         'alarm_settings': snapshot_alarm_settings,
         'alarm_settings_updated_at_ms': snapshot_alarm_settings_updated_at_ms,
         'alarm_settings_revision': snapshot_alarm_settings_revision,
+        'rtcm': rtcm_relay.snapshot() if RTCM_ENABLED else {'enabled': False},
     }
 
 
@@ -543,6 +551,13 @@ def push_to_mini_program():
 @app.route('/data', methods=['GET'])
 def get_data():
     return jsonify(build_data_snapshot())
+
+
+@app.route('/rtcm-status', methods=['GET'])
+def get_rtcm_status():
+    if not RTCM_ENABLED:
+        return jsonify({'enabled': False})
+    return jsonify(rtcm_relay.snapshot())
 
 
 def _alarm_settings_response():
@@ -770,6 +785,12 @@ def tcp_server(port=DEVICE_TCP_PORT):
 
 def main():
     threading.Thread(target=tcp_server, daemon=True).start()
+
+    if RTCM_ENABLED:
+        rtcm_relay.start()
+        print(f"RTCM relay: base station -> :{RTCM_PORT_IN}, rovers <- :{RTCM_PORT_OUT}")
+    else:
+        print("RTCM relay disabled by STM32_RTCM_ENABLED")
 
     print(f"HTTP / WebSocket server starting on port {HTTP_PORT}")
     print(f"HTTP endpoint: http://127.0.0.1:{HTTP_PORT}/data")

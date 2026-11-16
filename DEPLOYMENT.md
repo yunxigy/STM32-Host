@@ -4,6 +4,17 @@
 
 独立仓库：[yunxigy/STM32-Host](https://github.com/yunxigy/STM32-Host)。安装程序负责 Python 环境、前端构建、Nginx 和后台开机启动。你只需要准备服务器公网 IP，以及显示地图所需的高德 Web Key 和安全码。
 
+## 两种部署模式
+
+| 模式 | 适用 | 命令 | 占用 80 端口 |
+| --- | --- | --- | --- |
+| 独立部署 | 这台服务器只跑 STM32 上位机 | `bash deploy/install-linux.sh 你的IP` | 是 |
+| 共享部署 | 同一台服务器还跑工具箱、股票等模块 | `bash deploy/install-linux-shared.sh 域名 https` | 否 |
+
+共享部署只安装 `stm32-4g` 服务、发布页面到 `/var/www/stm32-host/stm32v2`、写 `/etc/stm32-host/4G.env`、装 Nginx 片段 `/etc/nginx/snippets/stm32-host.conf`，**不改动站点 server 块、不 reload Nginx**。页面入口由站点统一 Nginx 提供 `location /stm32v2/`，完整步骤见仓库外的 `部署/README.md`。
+
+两种模式的端口分配一致：8007（HTTP/WS）、8008（设备）、8017（RTCM 基准站）、8018（RTCM 流动站）。
+
 ## 第一步：进入服务器，安装 Git
 
 以下命令在服务器的 Linux 终端执行，使用 root 账号。普通账号先执行 `sudo -i`；已经显示 `root@...` 时直接继续。
@@ -80,27 +91,35 @@ bash deploy/install-linux.sh 203.0.113.10
 | 协议/端口 | 用途 |
 | --- | --- |
 | TCP 80 | 浏览器访问平台 |
-| TCP 8008 | STM32/4G 设备接入 |
+| TCP 8008 | STM32/4G 设备接入（遥测、告警、指令） |
+| TCP 8017 | 基准站上传 RTCM3 差分数据 |
+| TCP 8018 | 流动站下载 RTCM3 差分数据 |
 
-如果主机已启用 firewalld 或 UFW，安装程序也会添加这两条规则；云安全组仍需你设置。
+如果主机已启用 firewalld 或 UFW，安装程序也会添加这些规则；云安全组仍需你设置。
 
 浏览器打开：
 
 ~~~text
-http://你的服务器公网IP/stm32/
+http://你的服务器公网IP/stm32v2/
 ~~~
 
 首次部署使用 HTTP，端口为 80。配置域名证书后再使用 HTTPS。
 
 4G 模块设置：
 
-~~~text
-服务器地址：你的服务器公网IP
-连接方式：TCP
-服务器端口：8008
-~~~
+| 角色 | 服务器地址 | 连接方式 | 服务器端口 |
+| --- | --- | --- | --- |
+| 测点设备（上报 IMU/GNSS） | 你的服务器公网IP | TCP | 8008 |
+| 基准站（上传差分） | 你的服务器公网IP | TCP | 8017 |
+| 流动站（接收差分） | 你的服务器公网IP | TCP | 8018 |
 
-设备未接入时数据为空是正常现象。后台 HTTP/WebSocket 的 8007 由 Nginx 转发，云安全组无需开放 8007。
+基准站从串口收到什么就往 8017 转发什么，十六进制文本（如 `D3 00 79 ...`）和原始二进制都可以，后台会自动识别。流动站连上 8018 后不需要发任何数据，服务器会持续把差分流推给它，并且在新连上时先补发一个完整历元。
+
+设备未接入时数据为空是正常现象。后台 HTTP/WebSocket 的 8007 由 Nginx 转发，云安全组无需开放 8007；8017 和 8018 是纯 TCP 端口，不经过 Nginx，必须由安全组直接放行。
+
+这两个端口是**全站统一分配**的：8009、8010 已被工具箱的研报服务和文档转换服务占用，不要改回去。
+
+平台上「差分中继 RTCM3」面板会显示基准站是否在线、当前码率、电文类型（1006/1033/1074/1124 等）和每台流动站的转发量。出现「基准站无差分数据」通常是 4G 已连通但串口没有数据上送。
 
 ## 以后怎样启动、停止、更新
 
@@ -148,7 +167,7 @@ tail -n 100 /var/log/stm32-host/nginx-error.log
 | --- | --- |
 | `/opt/stm32-host` | Git 拉取的源码 |
 | `/opt/stm32-host/.env.local` | 地图配置 |
-| `/var/www/stm32-host/stm32` | 发布的页面 |
+| `/var/www/stm32-host/stm32v2` | 发布的页面 |
 | `/etc/stm32-host/4G.env` | 后台端口和状态路径 |
 | `/var/lib/stm32-host/alarm_settings.json` | 全体访问者共用的告警阈值 |
 | `/var/lib/stm32-host/gnss_runtime/` | 各设备 GNSS 参考、滤波状态和观测记录 |

@@ -3,15 +3,15 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/stm32/',
+  base: '/stm32v2/',
   envDir: '..',
   server: {
     proxy: {
-      '/stm32/api': {
+      '/stm32v2/api': {
         target: 'http://127.0.0.1:8007',
         changeOrigin: true,
         ws: true,
-        rewrite: path => path.replace(/^\/stm32\/api/, ''),
+        rewrite: path => path.replace(/^\/stm32v2\/api/, ''),
       },
     },
   },

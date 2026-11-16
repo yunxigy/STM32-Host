@@ -127,10 +127,57 @@ export interface DeviceRecord {
   gnss?: GnssDisplacement | null;
 }
 
+export interface RtcmRelayBase {
+  connected: boolean;
+  addr: string | null;
+  ident: string | null;
+  mode: 'hex' | 'binary' | 'text' | null;
+  connected_at_ms: number;
+  bytes_in: number;
+  frames: number;
+  crc_errors: number;
+  last_frame_at_ms: number;
+  frame_age_ms: number;
+}
+
+export interface RtcmRelayRover {
+  sid: number;
+  addr: string;
+  ident: string | null;
+  connected_at_ms: number;
+  bytes_sent: number;
+  chunks_sent: number;
+  dropped: number;
+  pending_bytes: number;
+}
+
+export interface RtcmRelayStatus {
+  enabled: boolean;
+  port_in?: number;
+  port_out?: number;
+  base?: RtcmRelayBase | null;
+  base_online?: boolean;
+  rovers?: RtcmRelayRover[];
+  rover_count?: number;
+  message_types?: number[];
+  message_type_names?: Record<string, string>;
+  epochs?: number;
+  frames_total?: number;
+  bytes_in_total?: number;
+  bytes_out_total?: number;
+  rate_in?: number;
+  rate_out?: number;
+  last_frame_at_ms?: number;
+  frame_age_ms?: number;
+  warning?: string;
+  updated_at_ms?: number;
+}
+
 export interface DeviceSnapshot {
   devices: Record<string, Partial<DeviceRecord>>;
   server_timestamp?: number;
   alarm_settings?: AlarmSettings;
   alarm_settings_updated_at_ms?: number;
   alarm_settings_revision?: number;
+  rtcm?: RtcmRelayStatus;
 }

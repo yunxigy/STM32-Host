@@ -17,3 +17,6 @@ alarm_settings.json
 !**/requirements.txt
 *.zip
 .runtime/
+
+# WorkBuddy workspace memory
+.workbuddy/

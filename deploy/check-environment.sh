@@ -64,9 +64,9 @@ else
 fi
 echo
 
-echo "--- listeners: 8007 HTTP/WebSocket, 8008 device TCP, 8016 dev only ---"
+echo "--- listeners: 8007 HTTP/WebSocket, 8008 device TCP, 8017 RTCM base, 8018 RTCM rover, 8016 dev only ---"
 if command -v ss >/dev/null 2>&1; then
-    for port in 8007 8008 8016; do
+    for port in 8007 8008 8017 8018 8016; do
         matches="$(ss -ltnp 2>/dev/null | grep -E ":$port([[:space:]]|$)" || true)"
         if [ -n "$matches" ]; then
             echo "port $port:"
